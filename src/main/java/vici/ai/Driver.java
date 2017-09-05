@@ -18,10 +18,10 @@ import vici.ai.ga.GAConfig;
 import vici.ai.ga.Individium;
 import vici.ai.ga.ProblemDef;
 import vici.ai.ga.RuleProblemDef;
-import vici.ai.rule.Condition;
 import vici.ai.rule.ConditionOperator;
 import vici.ai.rule.Rule;
 import vici.ai.rule.RuleGenerator;
+import vici.ai.rule.SimpleCondition;
 import vici.ai.rule.StateRangeService;
 
 public class Driver {
@@ -48,13 +48,13 @@ public class Driver {
     // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario3.txt")), Lists.newArrayList("A3_0"));
     // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario4.txt")), Lists.newArrayList("A18_0"));
     // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario4-half.txt")), Lists.newArrayList("A18_0"));
-    trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario4-half.txt")).getData(), null);
+    // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario4-half.txt")).getData(), null);
     // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario4.txt")), Lists.newArrayList( "A6_0"));
     // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario4-half.txt")), Lists.newArrayList("A4_0"));
 
     // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario5.txt")), null);
     // trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./Scenario5.txt")), Lists.newArrayList("A14_0"));
-
+    trainGa(loader.loadThomasDataSetWithTimeFinal(new File("./samples/Scenario7.csv")).getData(), null);
   }
 
   private static void trainGa(List<DataContext> data, ArrayList<String> targetActors) {
@@ -67,6 +67,7 @@ public class Driver {
         .numberOfCrossoverOperations(120)
         .numberOfMutationOperations(100)
         .populationSize(300)
+        .threadCount(4)
         .build();
 
     // GAConfig config = GAConfig.builder()
@@ -93,7 +94,7 @@ public class Driver {
 
     Set<String> unwantedIndividiums = new HashSet<>();
 
-    ProblemDef<Rule> problemDef = new RuleProblemDef(names, targetActors, rangeService, unwantedIndividiums);
+    ProblemDef<Rule> problemDef = new RuleProblemDef(names, targetActors, rangeService, unwantedIndividiums, null);
     GA<Rule> ga = new GA<Rule>(config, problemDef);
     Individium<Rule> bestRule = ga.train(data);
 
@@ -106,7 +107,7 @@ public class Driver {
 
   public static void train(List<DataContext> data) {
     RuleEngine engine = new RuleEngine();
-    RuleGenerator generator = new RuleGenerator(new StateRangeService());
+    RuleGenerator generator = new RuleGenerator(new StateRangeService(), null);
 
     int iterations = 0;
 
@@ -115,8 +116,8 @@ public class Driver {
 
     while (summary.getCountMatchP() < data.size()) {
 
-      Rule r0 = generator.random("A1", 1, data.get(0).getNames());
-      RuleEngineMatchSummary tmpSummary = engine.matchAll(r0, data);
+      Rule r0 = generator.randomRule("A1", 1, data.get(0).getNames());
+      RuleEngineMatchSummary tmpSummary = engine.matchAll(r0, data, false);
 
       iterations++;
 
@@ -146,7 +147,7 @@ public class Driver {
 
     r0 = Rule.builder()
         .conditions(Lists.newArrayList(
-            Condition.builder()
+            SimpleCondition.builder()
                 .srcActorName("Hour")
                 .op(ConditionOperator.EQUALS)
                 .varState(20)
@@ -155,11 +156,11 @@ public class Driver {
         .targetActorState(1)
         .build();
 
-    System.out.println("Result: " + engine.matchAll(r0, data) + "        " + r0);
+    System.out.println("Result: " + engine.matchAll(r0, data, false) + "        " + r0);
 
     r0 = Rule.builder()
         .conditions(Lists.newArrayList(
-            Condition.builder()
+            SimpleCondition.builder()
                 .srcActorName("Minute")
                 .op(ConditionOperator.EQUALS)
                 .varState(15)
@@ -168,7 +169,7 @@ public class Driver {
         .targetActorState(1)
         .build();
 
-    System.out.println("Result: " + engine.matchAll(r0, data) + "        " + r0);
+    System.out.println("Result: " + engine.matchAll(r0, data, false) + "        " + r0);
 
   }
 

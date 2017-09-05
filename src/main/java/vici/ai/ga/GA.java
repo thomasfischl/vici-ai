@@ -40,6 +40,9 @@ public class GA<T> {
 
       int currPopulationSize;
 
+      Individium<T> hero = population[0];
+      int heroAge = 0;
+
       for (int iteration = 0; iteration < config.getMaxNumberOfGenerations(); iteration++) {
         Individium<T>[] newPopulation = new Individium[config.getPopulationSize()];
         currPopulationSize = 0;
@@ -65,18 +68,19 @@ public class GA<T> {
         // Print best individium
         sortPopulation(population);
 
-        if (iteration % 10 == 0) {
-          showStatistics(iteration);
-          // System.out.println("Hero[-1]: " + population[1]);
-          // System.out.println("Hero[-2]: " + population[2]);
-          // System.out.println("Hero[-3]: " + population[3]);
-          // System.out.println("Hero[-4]: " + population[4]);
-          // System.out.println("Hero[-5]: " + population[5]);
-          // System.out.println("Losser: " + population[population.length - 1]);
+        if (iteration % 1 == 0) {
+          showStatistics(iteration, heroAge);
         }
 
-        if (problemDef.isExceptableSolution(getBestIndividium())) {
-          showStatistics(iteration);
+        if (hero.getFitness() < getBestIndividium().getFitness()) {
+          hero = getBestIndividium();
+          heroAge = 0;
+        } else {
+          heroAge++;
+        }
+
+        if (heroAge > 30 && problemDef.isExceptableSolution(hero)) {
+          showStatistics(iteration, heroAge);
 
           Individium<T> bestIndividium = getBestIndividium();
           bestIndividium.setAcceptableSolution(true);
@@ -85,16 +89,26 @@ public class GA<T> {
 
       }
 
+      if (problemDef.isExceptableSolution(getBestIndividium())) {
+        Individium<T> bestIndividium = getBestIndividium();
+        bestIndividium.setAcceptableSolution(true);
+        return bestIndividium;
+      }
+
       return getBestIndividium();
     } finally {
       executorService.shutdownNow();
     }
   }
 
-  private void showStatistics(int iteration) {
+  private void showStatistics(int iteration, int heroAge) {
     System.out.println("Generation " + iteration);
     problemDef.showPopulationStatistics(population);
-    System.out.println("Hero[ 0]: " + getBestIndividium());
+    System.out.println("Hero[" + heroAge + "]: " + getBestIndividium());
+
+    // for (int i = 1; i < 10; i++) {
+    // System.out.println("Hero[-" + i + "]: " + population[i].getValue() + " --> " + population[i].getResultDetails());
+    // }
   }
 
   private int fillPopulitionWithBestXIndividiums(Individium<T>[] newPopulation, int currPopulationSize) {
@@ -142,6 +156,7 @@ public class GA<T> {
     Individium<T> i2 = population[pos2];
 
     if (i1.getFitness() > i2.getFitness()) {
+      // if (((RuleEngineMatchSummary) i1.getResultData()).compareTo((RuleEngineMatchSummary) i2.getResultData()) > 0) {
       return i1;
     } else {
       return i2;
@@ -159,8 +174,30 @@ public class GA<T> {
   }
 
   private void sortPopulation(Individium<T>[] population) {
+    // Arrays.sort(population, (o1, o2) -> ((RuleEngineMatchSummary) o1.getResultData()).compareTo((RuleEngineMatchSummary) o2.getResultData()));
     Arrays.sort(population, (o1, o2) -> Double.compare(o2.getFitness(), o1.getFitness()));
+    //
+    // int n = population.length;
+    // Individium<T> temp;
+    //
+    // for (int i = 0; i < n; i++) {
+    // for (int j = 1; j < (n - i); j++) {
+    //
+    // if (compare(population, j)) {
+    // temp = population[j - 1];
+    // population[j - 1] = population[j];
+    // population[j] = temp;
+    // }
+    //
+    // }
+    // }
   }
+
+  // private boolean compare(Individium<T>[] population, int j) {
+  // return population[j - 1].get > population[j];
+  //
+  // // return ((RuleEngineMatchSummary) population[j - 1].getResultData()).compareTo((RuleEngineMatchSummary) population[j].getResultData()) > 0;
+  // }
 
   private void evaluatePopulationFitness(List<DataContext> data) {
     List<Future<?>> fList = new ArrayList<>();

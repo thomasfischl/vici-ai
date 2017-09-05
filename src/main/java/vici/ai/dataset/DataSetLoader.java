@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import com.google.common.base.Charsets;
@@ -170,6 +171,33 @@ public class DataSetLoader {
     }
 
     return data;
+  }
+
+  public DataSet reduce(DataSet dataset, String targetActor) {
+    Random rand = new Random();
+
+    DataSet result = new DataSet();
+    result.getDeviceNameMapping().putAll(dataset.getDeviceNameMapping());
+
+    List<DataContext> negativData = new ArrayList<>();
+
+    int countActive = 0;
+    for (DataContext data : dataset.getData()) {
+      if (data.get(targetActor) == 1) {
+        countActive++;
+        result.getData().add(data);
+      } else {
+        negativData.add(data);
+      }
+    }
+
+    for (int i = 0; i < countActive * 4; i++) {
+      result.getData().add(negativData.remove(rand.nextInt(negativData.size() - 1)));
+    }
+
+    System.out.println("Data: " + countActive + "/" + dataset.getData().size() + "/" + result.getData().size());
+
+    return result;
   }
 
 }

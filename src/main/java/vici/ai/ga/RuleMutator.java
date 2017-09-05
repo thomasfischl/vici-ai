@@ -5,11 +5,14 @@ import java.util.Random;
 
 import com.google.common.collect.Lists;
 
-import vici.ai.rule.BoolExprOperator;
+import vici.ai.dataset.ConditionSet;
 import vici.ai.rule.Condition;
-import vici.ai.rule.ConditionOperator;
+import vici.ai.rule.IntervalCondition;
 import vici.ai.rule.Rule;
+import vici.ai.rule.RuleGenerator;
+import vici.ai.rule.SimpleCondition;
 import vici.ai.rule.StateRangeService;
+import vici.ai.rule.TimeOffsetCondition;
 
 public class RuleMutator {
 
@@ -19,9 +22,13 @@ public class RuleMutator {
 
   private final StateRangeService rangeService;
 
-  public RuleMutator(List<String> srcActorNames, StateRangeService rangeService) {
+  private final RuleGenerator generator;
+
+  public RuleMutator(List<String> srcActorNames, StateRangeService rangeService, ConditionSet conditions) {
     this.srcActorNames = srcActorNames;
     this.rangeService = rangeService;
+
+    generator = new RuleGenerator(rangeService, conditions);
   }
 
   public Individium<Rule> mutate(Individium<Rule> i1) {
@@ -35,20 +42,23 @@ public class RuleMutator {
     switch (rand.nextInt(10)) {
     case 1:
     case 2:
+    case 3:
       removeOneRandomCondition(newRule);
       break;
-    case 3:
     case 4:
       addRandomCondition(newRule);
       break;
     case 5:
     case 6:
     case 7:
-      randomizeSrcActor(newRule);
+      removeOneRandomCondition(newRule);
+      addRandomCondition(newRule);
+      // randomizeSrcActor(newRule);
       break;
     case 8:
-      randomizeMultiState(newRule);
     case 9:
+      randomizeMultiState(newRule);
+      break;
     case 10:
     default:
       randomizeState(newRule);
@@ -78,10 +88,80 @@ public class RuleMutator {
   }
 
   private void randomizeState(Rule newRule, int pos) {
-    Condition c = newRule.getConditions().remove(pos);
+    Condition base = newRule.getConditions().remove(pos);
+
+    if (base instanceof SimpleCondition) {
+      randomizeSimpleConditionState(newRule, pos, (SimpleCondition) base);
+    } else if (base instanceof IntervalCondition) {
+      randomizeIntervalConditionState(newRule, pos, (IntervalCondition) base);
+    } else if (base instanceof TimeOffsetCondition) {
+      randomizeTimeOffsetCondition(newRule, pos, (TimeOffsetCondition) base);
+    } else {
+      throw new IllegalStateException("Implement me");
+    }
+  }
+
+  private void randomizeTimeOffsetCondition(Rule newRule, int pos, TimeOffsetCondition c) {
+
+    int startOffset = rand.nextInt(3);
+    int offsetLength = rand.nextInt(6 - startOffset);
 
     newRule.getConditions().add(pos,
-        Condition.builder()
+        TimeOffsetCondition.builder()
+            .exprOp(c.getExprOp())
+            .srcActorName(c.getSrcActorName())
+            .startOffset(startOffset)
+            .offsetLength(offsetLength)
+            .build());
+  }
+
+  public void randomizeIntervalConditionState(Rule newRule, int pos, IntervalCondition c) {
+    int lowerBoundState = c.getLowerBoundState();
+    int upperBoundState = c.getUpperBoundState();
+
+    switch (rand.nextInt(8)) {
+    case 0:
+      lowerBoundState += rand.nextInt(2) + 1;
+      break;
+    case 1:
+      lowerBoundState -= rand.nextInt(2) + 1;
+      break;
+    case 2:
+      upperBoundState += rand.nextInt(2) + 1;
+      break;
+    case 3:
+      upperBoundState -= rand.nextInt(2) + 1;
+      break;
+    case 4:
+    case 5:
+      int val = rand.nextInt(2) + 1;
+      lowerBoundState += val;
+      upperBoundState += val;
+      break;
+    case 6:
+    case 7:
+    default:
+      val = rand.nextInt(2) + 1;
+      lowerBoundState -= val;
+      upperBoundState -= val;
+      break;
+    }
+
+    // System.out
+    // .println("randomizeIntervalConditionState " + c.getLowerBoundState() + "-" + c.getUpperBoundState() + " => " + lowerBoundState + "-" + upperBoundState);
+
+    newRule.getConditions().add(pos,
+        IntervalCondition.builder()
+            .exprOp(c.getExprOp())
+            .srcActorName(c.getSrcActorName())
+            .lowerBoundState(Math.max(lowerBoundState, 0))
+            .upperBoundState(Math.min(upperBoundState, rangeService.getHighestValue(c.getSrcActorName())))
+            .build());
+  }
+
+  private void randomizeSimpleConditionState(Rule newRule, int pos, SimpleCondition c) {
+    newRule.getConditions().add(pos,
+        SimpleCondition.builder()
             .exprOp(c.getExprOp())
             .op(c.getOp())
             .srcActorName(c.getSrcActorName())
@@ -95,21 +175,28 @@ public class RuleMutator {
       pos = rand.nextInt(newRule.getConditions().size() - 1);
     }
 
-    Condition c = newRule.getConditions().remove(pos);
+    Condition base = newRule.getConditions().remove(pos);
 
-    String srcActorName = srcActorNames.get(rand.nextInt(srcActorNames.size()));
+    if (base instanceof SimpleCondition) {
+      SimpleCondition c = (SimpleCondition) base;
 
-    while (newRule.getTargetActorName().equals(srcActorName) || c.getSrcActorName().equals(srcActorName)) {
-      srcActorName = srcActorNames.get(rand.nextInt(srcActorNames.size()));
+      String srcActorName = srcActorNames.get(rand.nextInt(srcActorNames.size()));
+
+      while (newRule.getTargetActorName().equals(srcActorName) || c.getSrcActorName().equals(srcActorName)) {
+        srcActorName = srcActorNames.get(rand.nextInt(srcActorNames.size()));
+      }
+
+      newRule.getConditions().add(pos,
+          SimpleCondition.builder()
+              .exprOp(c.getExprOp())
+              .op(c.getOp())
+              .srcActorName(srcActorName)
+              .varState(rangeService.getRandomState(srcActorName))
+              .build());
+    } else {
+      // TODO implement me!!!
+      newRule.getConditions().add(pos, base);
     }
-
-    newRule.getConditions().add(pos,
-        Condition.builder()
-            .exprOp(c.getExprOp())
-            .op(c.getOp())
-            .srcActorName(srcActorName)
-            .varState(rangeService.getRandomState(srcActorName))
-            .build());
   }
 
   private void removeOneRandomCondition(Rule newRule) {
@@ -121,34 +208,28 @@ public class RuleMutator {
   }
 
   private void addRandomCondition(Rule newRule) {
+    Condition c = generator.generateRandomCondition(newRule.getConditions());
+    
+    if(c==null){
+      return;
+    }
+    
+    int i = 0;
+    while (isActorAlreadyExists(newRule, c)) {
+      c = generator.generateRandomCondition(newRule.getConditions());
 
-    String srcActorName = srcActorNames.get(rand.nextInt(srcActorNames.size()));
-    while (srcActorName.equals(newRule.getTargetActorName())) {
-      srcActorName = srcActorNames.get(rand.nextInt(srcActorNames.size()));
+      if (i > 10) {
+        return;
+      }
+
+      i++;
     }
 
-    newRule.getConditions().add(Condition.builder()
-        .srcActorName(srcActorName)
-        .op(ConditionOperator.EQUALS)
-        .varState(rangeService.getRandomState(srcActorName))
-        .exprOp(BoolExprOperator.AND)
-        .build());
-
+    newRule.getConditions().add(c);
   }
 
-  // private void cloneConditions(Rule newRule) {
-  // List<Condition> newConditions = new ArrayList<>();
-  //
-  // for (Condition c : newRule.getConditions()) {
-  // newConditions.add(Condition.builder()
-  // .exprOp(c.getExprOp())
-  // .op(c.getOp())
-  // .srcActorName(c.getSrcActorName())
-  // .varState(c.getVarState())
-  // .build());
-  // }
-  //
-  // newRule.setConditions(newConditions);
-  // }
+  private boolean isActorAlreadyExists(Rule newRule, Condition c) {
+    return newRule.getConditions().stream().filter(o -> o.getSrcActorName().equals(c.getSrcActorName())).findFirst().isPresent();
+  }
 
 }

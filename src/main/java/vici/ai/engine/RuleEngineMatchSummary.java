@@ -3,7 +3,7 @@ package vici.ai.engine;
 import lombok.Value;
 
 @Value
-public class RuleEngineMatchSummary implements Comparable<RuleEngineMatchSummary> {
+public class RuleEngineMatchSummary {
 
   private int countMatchP;
   private int countMatchN;
@@ -31,21 +31,26 @@ public class RuleEngineMatchSummary implements Comparable<RuleEngineMatchSummary
     if (countMatchP == 0) {
       return -1000 * countFP;
     }
-    // if (countMatchP == 0) {
-    // return -countFP - countFN;
-    // }
-    //
-    return ((double) (countFP * 1.5) / countMatchP) * -10 + Math.min(countMatchP, 10) - numberOfConditions;
+    // return ((double) (countFP * 1.5) / countMatchP) * -10 + Math.min(countMatchP, 10) - numberOfConditions;
 
-    // orginal
-    // return (countMatchP * 100) - (countFP * 75) - countFN + (numberOfConditions * -1); // works really good
-    // return (countMatchP * 100) + countMatchN - (countFP * 75) - countFN + (numberOfConditions * -1);
+    int max = countFN + countFP + countMatchN + countMatchP;
+
+    double positivRatio = (double) countMatchP / max;
+    double positivFRatio = (double) countMatchN / max;
+    double negativRatio = (double) countFP / max;
+
+    double boost = 0;
+
+    if (countMatchP > 10) {
+      boost += 0.4;
+    }
+
+    if (countFP > 10) {
+      boost -= 0.4;
+    }
+
+    return positivRatio - negativRatio + Math.min(countMatchP * 0.001, 0.01) - Math.min(countFP * 0.001, 0.02) + boost;
+
   }
 
-  @Override
-  public int compareTo(RuleEngineMatchSummary o) {
-    // if(o.countMatchP > )
-
-    return 0;
-  }
 }

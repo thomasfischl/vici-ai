@@ -11,10 +11,13 @@ import java.util.stream.Collectors;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
+import vici.ai.dataset.ConditionSet;
 import vici.ai.dataset.DataSet;
 import vici.ai.dataset.DataSetLoader;
+import vici.ai.dataset.ExceptableConditionExtractor;
 import vici.ai.engine.DataContext;
 import vici.ai.engine.RuleEngineMatchSummary;
 import vici.ai.ga.GA;
@@ -40,22 +43,29 @@ public class MultiRuleDriver {
   }
 
   public static void main(String[] args) {
-    new MultiRuleDriver(new File("./Scenario6.csv"), 2, new File("./result.txt")).run();
+    new MultiRuleDriver(new File("./samples/FullScenario.csv"), 10, new File("./result.txt")).run();
+    // new MultiRuleDriver(new File("./samples/Scenario8.csv"), 4, new File("./result.txt")).run();
   }
 
   public void run() {
     DataSetLoader loader = new DataSetLoader();
-    trainMultipleTimes(loader.loadThomasDataSetWithTimeFinal(dataFile), numberOfRuns);
+    DataSet dataSet = loader.loadThomasDataSetWithTimeFinal(dataFile);
+    dataSet = loader.reduce(dataSet, "A6_0");
+    trainMultipleTimes(dataSet, numberOfRuns);
   }
 
   private void trainMultipleTimes(DataSet dataSet, int runs) {
+
+    ExceptableConditionExtractor conditionExtractor = new ExceptableConditionExtractor();
+    ConditionSet conditions = conditionExtractor.getConditions(dataSet, "A6_0");
+
     List<Individium<Rule>> results = new ArrayList<>();
 
     for (int i = 0; i < runs; i++) {
       Stopwatch s = Stopwatch.createStarted();
       System.out.println("Run: " + (i + 1));
 
-      Individium<Rule> bestRule = train(dataSet.getData(), results);
+      Individium<Rule> bestRule = train(dataSet.getData(), results, conditions);
       results.add(bestRule);
 
       System.out.println("Duration: " + s.stop());
@@ -65,17 +75,18 @@ public class MultiRuleDriver {
     displayResults(results, dataSet);
   }
 
-  private Individium<Rule> train(List<DataContext> data, List<Individium<Rule>> results) {
+  private Individium<Rule> train(List<DataContext> data, List<Individium<Rule>> results, ConditionSet conditions) {
     GAConfig config = GAConfig.builder()
-        .elitism(1)
+        .elitism(2)
         .maxNumberOfGenerations(400)
-        .numberOfCrossoverOperations(100)
-        .numberOfMutationOperations(80)
-        .populationSize(200)
+        .numberOfCrossoverOperations(200)
+        .numberOfMutationOperations(40)
+        .populationSize(250)
         .threadCount(6)
         .build();
 
-    List<String> names = data.get(0).getNames().stream().filter(name -> !name.startsWith("A")).collect(Collectors.toList());
+    // List<String> names = data.get(0).getNames().stream().filter(name -> !name.startsWith("A")).collect(Collectors.toList());
+    List<String> names = data.get(0).getNames();
 
     StateRangeService rangeService = new StateRangeService();
 
@@ -84,7 +95,16 @@ public class MultiRuleDriver {
       unwantedIndividiums.add(result.getValue().getShortForm());
     }
 
-    ProblemDef<Rule> problemDef = new RuleProblemDef(names, rangeService.getTargetActors(), rangeService, unwantedIndividiums);
+    // List<Condition> filteredconditions = new ArrayList<>(conditions);
+    //
+    // for (Individium<Rule> result : results) {
+    // for (Condition c : result.getValue().getConditions()) {
+    // System.out.println("Remove Condition: " + filteredconditions.remove(c));
+    // }
+    // }
+
+    ProblemDef<Rule> problemDef = new RuleProblemDef(names, Lists.newArrayList("A6_0"), rangeService, unwantedIndividiums, conditions);
+    // ProblemDef<Rule> problemDef = new RuleProblemDef(names, rangeService.getTargetActors(), rangeService, unwantedIndividiums);
     GA<Rule> ga = new GA<Rule>(config, problemDef);
     Individium<Rule> bestRule = ga.train(data);
     return bestRule;

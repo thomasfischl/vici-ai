@@ -5,6 +5,7 @@ import java.util.List;
 
 import lombok.Builder;
 import lombok.Data;
+import vici.ai.engine.DataContext;
 
 @Builder
 @Data
@@ -37,7 +38,7 @@ public class Rule {
       if (i != 0) {
         conditionStr += conditions.get(i).getExprOp();
       }
-      conditionStr += conditions.get(i).getSrcActorName() + "|" + conditions.get(i).getOp().ordinal() + "|" + conditions.get(i).getVarState();
+      conditionStr += conditions.get(i).getShortForm();
     }
 
     return conditionStr + ">" + targetActorName + "=" + targetActorState;
@@ -57,6 +58,21 @@ public class Rule {
     }
 
     return "IF (" + conditionStr + ") THEN " + targetActorName + " == " + targetActorState;
+  }
+
+  public String toString(DataContext data) {
+
+    String conditionStr = "";
+
+    for (int i = 0; i < conditions.size(); i++) {
+      if (i == 0) {
+        conditionStr += conditions.get(i).toString(data) + " ";
+      } else {
+        conditionStr += conditions.get(i).getExprOp() + " " + conditions.get(i).toString(data) + " ";
+      }
+    }
+
+    return "IF (" + conditionStr + ") THEN " + targetActorName + " == " + targetActorState + "[" + data.get(targetActorName) + "]";
   }
 
 }

@@ -4,7 +4,6 @@ import java.util.List;
 
 import vici.ai.rule.BoolExprOperator;
 import vici.ai.rule.Condition;
-import vici.ai.rule.ConditionOperator;
 import vici.ai.rule.Rule;
 
 public class RuleEngine {
@@ -13,22 +12,11 @@ public class RuleEngine {
     Boolean result = null;
 
     for (Condition condition : rule.getConditions()) {
-
-      int currActorState = ctx.get(condition.getSrcActorName());
-
-      boolean matchCondition;
-      if (condition.getOp() == ConditionOperator.EQUALS) {
-        matchCondition = currActorState == condition.getVarState();
-      } else if (condition.getOp() == ConditionOperator.EQUALS) {
-        matchCondition = currActorState != condition.getVarState();
-      } else {
-        throw new IllegalStateException("Invalid Operator '" + condition.getOp() + "'");
-      }
+      boolean matchCondition = condition.eval(ctx);
 
       if (result == null) {
         result = matchCondition;
       } else {
-
         if (condition.getExprOp() == BoolExprOperator.AND) {
           result = result && matchCondition;
         } else if (condition.getExprOp() == BoolExprOperator.OR) {
@@ -58,7 +46,7 @@ public class RuleEngine {
     }
   }
 
-  public RuleEngineMatchSummary matchAll(Rule rule, List<DataContext> data) {
+  public RuleEngineMatchSummary matchAll(Rule rule, List<DataContext> data, boolean showFPResults) {
     int countMatchP = 0;
     int countMatchN = 0;
     int countFN = 0;
@@ -71,6 +59,9 @@ public class RuleEngine {
         countFN++;
         break;
       case FALSE_POSITIVE:
+        if (showFPResults) {
+          System.out.println(rule.toString(ctx));
+        }
         countFP++;
         break;
       case MATCH_NEGATIVE:

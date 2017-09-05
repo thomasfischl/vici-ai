@@ -1,29 +1,17 @@
 package vici.ai.rule;
 
-import lombok.Builder;
-import lombok.Data;
+import vici.ai.engine.DataContext;
 
-@Builder
-@Data
-public class Condition {
+public interface Condition {
 
-  private final String srcActorName;
+  BoolExprOperator getExprOp();
 
-  private final ConditionOperator op;
+  String getSrcActorName();
 
-  private final int varState;
-  
-  private final BoolExprOperator exprOp;
+  String getShortForm();
 
-  @Override
-  public String toString() {
-    if (op == ConditionOperator.EQUALS) {
-      return srcActorName + " == " + varState;
-    } else if (op == ConditionOperator.EQUALS) {
-      return srcActorName + " != " + varState;
-    } else {
-      throw new IllegalStateException("Invalid op");
-    }
-  }
+  boolean eval(DataContext ctx);
+
+  String toString(DataContext data);
 
 }
